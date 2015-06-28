@@ -313,6 +313,16 @@ EOF
         $this->assertEquals(array('0-One', '1-Two', '2-Three'), $data, '->each() executes an anonymous function on each node of the list');
     }
 
+    public function testSlice()
+    {
+        $crawler = $this->createTestCrawler()->filterXPath('//ul[1]/li');
+        $this->assertNotSame($crawler->slice(), $crawler, '->slice() returns a new instance of a crawler');
+        $this->assertInstanceOf('Symfony\\Component\\DomCrawler\\Crawler', $crawler->slice(), '->slice() returns a new instance of a crawler');
+
+        $this->assertCount(3, $crawler->slice(), '->slice() does not slice the nodes in the list if any param is entered');
+        $this->assertCount(1, $crawler->slice(1, 1), '->slice() slices the nodes in the list');
+    }
+
     public function testReduce()
     {
         $crawler = $this->createTestCrawler()->filterXPath('//ul[1]/li');
@@ -567,6 +577,48 @@ EOF
 
         $this->assertEquals(1, $crawler->selectButton('FooBarValue')->count(), '->selectButton() selects buttons with form attribute too');
         $this->assertEquals(1, $crawler->selectButton('FooBarName')->count(), '->selectButton() selects buttons with form attribute too');
+    }
+
+    public function testSelectButtonWithSingleQuotesInNameAttribute()
+    {
+        $html = <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+<body>
+    <div id="action">
+        <a href="/index.php?r=site/login">Login</a>
+    </div>
+    <form id="login-form" action="/index.php?r=site/login" method="post">
+        <button type="submit" name="Click 'Here'">Submit</button>
+    </form>
+</body>
+</html>
+HTML;
+
+        $crawler = new Crawler($html);
+
+        $this->assertCount(1, $crawler->selectButton('Click \'Here\''));
+    }
+
+    public function testSelectButtonWithDoubleQuotesInNameAttribute()
+    {
+        $html = <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+<body>
+    <div id="action">
+        <a href="/index.php?r=site/login">Login</a>
+    </div>
+    <form id="login-form" action="/index.php?r=site/login" method="post">
+        <button type="submit" name='Click "Here"'>Submit</button>
+    </form>
+</body>
+</html>
+HTML;
+
+        $crawler = new Crawler($html);
+
+        $this->assertCount(1, $crawler->selectButton('Click "Here"'));
     }
 
     public function testLink()
