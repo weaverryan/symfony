@@ -65,7 +65,22 @@ class AutowirePass implements CompilerPassInterface
 
         $this->container->addClassResource($reflectionClass);
 
-        if (!$constructor = $reflectionClass->getConstructor()) {
+        $this->autowireConstructor($id, $definition, $reflectionClass);
+        $this->autowireSetters($id, $definition, $reflectionClass);
+    }
+
+    /**
+     * Autowires the constructor.
+     *
+     * @param string           $id
+     * @param Definition       $definition
+     * @param \ReflectionClass $reflectionClass
+     *
+     * @throws RuntimeException
+     */
+    private function autowireConstructor($id, Definition $definition, \ReflectionClass $reflectionClass)
+    {
+        if (!($constructor = $reflectionClass->getConstructor())) {
             return;
         }
 
@@ -124,6 +139,51 @@ class AutowirePass implements CompilerPassInterface
         // make sure that we re-order so they're injected as expected
         ksort($arguments);
         $definition->setArguments($arguments);
+    }
+
+    /**
+     * Autowires setters.
+     *
+     * @param string           $id
+     * @param Definition       $definition
+     * @param \ReflectionClass $reflectionClass
+     */
+    private function autowireSetters($id, Definition $definition, \ReflectionClass $reflectionClass)
+    {
+        $methodsCalled = array();
+        foreach ($definition->getMethodCalls() as $methodCall) {
+            $methodsCalled[$methodCall[0]] = true;
+        }
+
+        foreach ($reflectionClass->getMethods(\ReflectionMethod::IS_PUBLIC) as $reflectionMethod) {
+            $name = $reflectionMethod->getName();
+            if (isset($methodsCalled[$name]) || $reflectionMethod->isStatic() || 0 !== strpos($name, 'set') || 1 !== $reflectionMethod->getNumberOfParameters()) {
+                continue;
+            }
+
+            $parameter = $reflectionMethod->getParameters()[0];
+            try {
+                if (!$typeHint = $parameter->getClass()) {
+                    continue;
+                }
+
+                if (null === $this->types) {
+                    $this->populateAvailableTypes();
+                }
+
+                if (isset($this->types[$typeHint->name])) {
+                    $value = new Reference($this->types[$typeHint->name]);
+                } else {
+                    $value = $this->createAutowiredDefinition($typeHint, $id);
+                }
+
+                $definition->addMethodCall($name, array($value));
+            } catch (RuntimeException $e) {
+                // Unable to create the autowired definition
+            } catch (\ReflectionException $reflectionException) {
+                // Typehint against a non-existing class
+            }
+        }
     }
 
     /**

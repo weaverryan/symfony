@@ -367,10 +367,24 @@ class AutowirePassTest extends \PHPUnit_Framework_TestCase
     {
         $container = new ContainerBuilder();
 
-        $container->register('a', __NAMESPACE__.'\A');
-        $container->register('lille', __NAMESPACE__.'\Lille');
-        $container->register('with_optional_scalar', __NAMESPACE__.'\MultipleArgumentsOptionalScalar')
+        $container->register('a', __NAMESPACE__ . '\A');
+        $container->register('lille', __NAMESPACE__ . '\Lille');
+        $container->register('with_optional_scalar', __NAMESPACE__ . '\MultipleArgumentsOptionalScalar')
             ->setAutowired(true);
+    }
+
+    public function testSetterInjection()
+    {
+        $container = new ContainerBuilder();
+        $container->register('a', A::class);
+
+        $aArguments = array(new Reference('a'));
+
+        $container
+            ->register('setter_injection', SetterInjection::class)
+            ->setAutowired(true)
+            ->addMethodCall('setA', $aArguments)
+        ;
 
         $pass = new AutowirePass();
         $pass->process($container);
@@ -411,6 +425,13 @@ class AutowirePassTest extends \PHPUnit_Framework_TestCase
             ),
             $definition->getArguments()
         );
+
+        $methodCalls = $container->getDefinition('setter_injection')->getMethodCalls();
+
+        $this->assertCount(2, $methodCalls);
+        $this->assertEquals(array('setA', $aArguments), $methodCalls[0]);
+        $this->assertEquals('setFoo', $methodCalls[1][0]);
+        $this->assertEquals('autowired.symfony\component\dependencyinjection\tests\compiler\foo', $methodCalls[1][1][0]->__toString());
     }
 }
 
@@ -536,6 +557,7 @@ class NotGuessableArgumentForSubclass
     {
     }
 }
+
 class MultipleArguments
 {
     public function __construct(A $k, $foo, Dunglas $dunglas)
@@ -558,6 +580,17 @@ class MultipleArgumentsOptionalScalarLast
 class MultipleArgumentsOptionalScalarNotReallyOptional
 {
     public function __construct(A $a, $foo = 'default_val', Lille $lille)
+    {
+    }
+}
+
+class SetterInjection
+{
+    public function setFoo(Foo $foo)
+    {
+    }
+
+    public function setA(A $a)
     {
     }
 }
