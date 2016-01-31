@@ -80,7 +80,7 @@ class AutowirePass implements CompilerPassInterface
      */
     private function autowireConstructor($id, Definition $definition, \ReflectionClass $reflectionClass)
     {
-        if (!($constructor = $reflectionClass->getConstructor())) {
+        if (!$constructor = $reflectionClass->getConstructor()) {
             return;
         }
 
