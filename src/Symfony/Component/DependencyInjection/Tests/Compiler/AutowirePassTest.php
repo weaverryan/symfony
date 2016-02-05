@@ -428,10 +428,13 @@ class AutowirePassTest extends \PHPUnit_Framework_TestCase
 
         $methodCalls = $container->getDefinition('setter_injection')->getMethodCalls();
 
-        $this->assertCount(2, $methodCalls);
+        $this->assertCount(3, $methodCalls);
         $this->assertEquals(array('setA', $aArguments), $methodCalls[0]);
         $this->assertEquals('setFoo', $methodCalls[1][0]);
         $this->assertEquals('autowired.symfony\component\dependencyinjection\tests\compiler\foo', $methodCalls[1][1][0]->__toString());
+        $this->assertEquals('setDependencies', $methodCalls[2][0]);
+        $this->assertEquals('autowired.symfony\component\dependencyinjection\tests\compiler\foo', $methodCalls[2][1][0]->__toString());
+        $this->assertEquals('a', $methodCalls[2][1][1]->__toString());
     }
 }
 
@@ -591,6 +594,10 @@ class SetterInjection
     }
 
     public function setA(A $a)
+    {
+    }
+
+    public function setDependencies(Foo $foo, A $a)
     {
     }
 }
