@@ -96,9 +96,16 @@ class AutowirePass implements CompilerPassInterface
      */
     private function autowireMethod($id, Definition $definition, \ReflectionMethod $reflectionMethod, $constructor)
     {
-        $arguments = $constructor ? $definition->getArguments() : array();
+        if ($constructor) {
+            $arguments = $definition->getArguments();
+        } elseif (0 === $reflectionMethod->getNumberOfParameters()) {
+            return;
+        } else {
+            $arguments = array();
+        }
 
-        foreach ($constructor->getParameters() as $index => $parameter) {
+        $addMethodCall = false;
+        foreach ($reflectionMethod->getParameters() as $index => $parameter) {
             if (array_key_exists($index, $arguments) && '' !== $arguments[$index]) {
                 continue;
             }
@@ -107,7 +114,11 @@ class AutowirePass implements CompilerPassInterface
                 if (!$typeHint = $parameter->getClass()) {
                     // no default value? Then fail
                     if (!$parameter->isOptional()) {
-                        throw new RuntimeException(sprintf('Unable to autowire argument index %d ($%s) for the service "%s". If this is an object, give it a type-hint. Otherwise, specify this argument\'s value explicitly.', $index, $parameter->name, $id));
+                        if ($constructor) {
+                            throw new RuntimeException(sprintf('Unable to autowire argument index %d ($%s) for the service "%s". If this is an object, give it a type-hint. Otherwise, specify this argument\'s value explicitly.', $index, $parameter->name, $id));
+                        }
+
+                        return;
                     }
 
                     // specifically pass the default value
@@ -122,16 +133,22 @@ class AutowirePass implements CompilerPassInterface
 
                 if (isset($this->types[$typeHint->name])) {
                     $value = new Reference($this->types[$typeHint->name]);
+                    $addMethodCall = true;
                 } else {
                     try {
                         $value = $this->createAutowiredDefinition($typeHint, $id);
+                        $addMethodCall = true;
                     } catch (RuntimeException $e) {
                         if ($parameter->allowsNull()) {
                             $value = null;
                         } elseif ($parameter->isDefaultValueAvailable()) {
                             $value = $parameter->getDefaultValue();
                         } else {
-                            throw $e;
+                            if ($constructor) {
+                                throw $e;
+                            }
+
+                            return;
                         }
                     }
                 }
@@ -155,7 +172,12 @@ class AutowirePass implements CompilerPassInterface
         // it's possible index 1 was set, then index 0, then 2, etc
         // make sure that we re-order so they're injected as expected
         ksort($arguments);
-        $constructor ? $definition->setArguments($arguments) : $definition->addMethodCall($reflectionMethod->name, $arguments);
+
+        if ($constructor) {
+            $definition->setArguments($arguments);
+        } elseif ($addMethodCall) {
+            $definition->addMethodCall($reflectionMethod->name, $arguments);
+        }
     }
 
     /**

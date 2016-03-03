@@ -367,24 +367,10 @@ class AutowirePassTest extends \PHPUnit_Framework_TestCase
     {
         $container = new ContainerBuilder();
 
-        $container->register('a', __NAMESPACE__ . '\A');
-        $container->register('lille', __NAMESPACE__ . '\Lille');
-        $container->register('with_optional_scalar', __NAMESPACE__ . '\MultipleArgumentsOptionalScalar')
+        $container->register('a', __NAMESPACE__.'\A');
+        $container->register('lille', __NAMESPACE__.'\Lille');
+        $container->register('with_optional_scalar', __NAMESPACE__.'\MultipleArgumentsOptionalScalar')
             ->setAutowired(true);
-    }
-
-    public function testSetterInjection()
-    {
-        $container = new ContainerBuilder();
-        $container->register('a', A::class);
-
-        $aArguments = array(new Reference('a'));
-
-        $container
-            ->register('setter_injection', SetterInjection::class)
-            ->setAutowired(true)
-            ->addMethodCall('setA', $aArguments)
-        ;
 
         $pass = new AutowirePass();
         $pass->process($container);
@@ -425,6 +411,21 @@ class AutowirePassTest extends \PHPUnit_Framework_TestCase
             ),
             $definition->getArguments()
         );
+    }
+
+    public function testSetterInjection()
+    {
+        $container = new ContainerBuilder();
+        $container->register('a', A::class);
+        $aArguments = array(new Reference('a'));
+        $container
+            ->register('setter_injection', SetterInjection::class)
+            ->setAutowired(true)
+            ->addMethodCall('setA', $aArguments)
+        ;
+
+        $pass = new AutowirePass();
+        $pass->process($container);
 
         $methodCalls = $container->getDefinition('setter_injection')->getMethodCalls();
 
@@ -560,7 +561,6 @@ class NotGuessableArgumentForSubclass
     {
     }
 }
-
 class MultipleArguments
 {
     public function __construct(A $k, $foo, Dunglas $dunglas)
@@ -598,6 +598,18 @@ class SetterInjection
     }
 
     public function setDependencies(Foo $foo, A $a)
+    {
+    }
+
+    public function setBar()
+    {
+    }
+
+    public function setNotAutowireable(NotARealClass $n)
+    {
+    }
+
+    public function setOptionalNotAutowireable(NotARealClass $n = null)
     {
     }
 }
