@@ -416,12 +416,16 @@ class AutowirePassTest extends \PHPUnit_Framework_TestCase
     public function testSetterInjection()
     {
         $container = new ContainerBuilder();
-        $container->register('a', A::class);
-        $aArguments = array(new Reference('a'));
+        $container->register('app_foo', Foo::class);
+        $container->register('app_a', A::class);
+        $container->register('app_collision_a', CollisionA::class);
+        $container->register('app_collision_b', CollisionB::class);
+
+        // manually configure *one* call, to override autowiring
         $container
             ->register('setter_injection', SetterInjection::class)
             ->setAutowired(true)
-            ->addMethodCall('setA', $aArguments)
+            ->addMethodCall('setWithCallsConfigured', array('manual_arg1', 'manual_arg2'))
         ;
 
         $pass = new AutowirePass();
@@ -429,13 +433,35 @@ class AutowirePassTest extends \PHPUnit_Framework_TestCase
 
         $methodCalls = $container->getDefinition('setter_injection')->getMethodCalls();
 
-        $this->assertCount(3, $methodCalls);
-        $this->assertEquals(array('setA', $aArguments), $methodCalls[0]);
-        $this->assertEquals('setFoo', $methodCalls[1][0]);
-        $this->assertEquals('autowired.symfony\component\dependencyinjection\tests\compiler\foo', $methodCalls[1][1][0]->__toString());
-        $this->assertEquals('setDependencies', $methodCalls[2][0]);
-        $this->assertEquals('autowired.symfony\component\dependencyinjection\tests\compiler\foo', $methodCalls[2][1][0]->__toString());
-        $this->assertEquals('a', $methodCalls[2][1][1]->__toString());
+        // grab the call method names
+        $actualMethodNameCalls = array_map(function($call) {
+            return $call[0];
+        }, $methodCalls);
+        $this->assertEquals(
+            array('setWithCallsConfigured', 'setFoo', 'setDependencies', 'setOptionalArgNoAutowireable'),
+            $actualMethodNameCalls
+        );
+
+        // test setWithCallsConfigured args
+        $this->assertEquals(
+            array('manual_arg1', 'manual_arg2'),
+            $methodCalls[0][1]
+        );
+        // test setFoo args
+        $this->assertEquals(
+            array(new Reference('app_foo')),
+            $methodCalls[1][1]
+        );
+        // test setDependencies args
+        $this->assertEquals(
+            array(new Reference('app_foo'), new Reference('app_a')),
+            $methodCalls[2][1]
+        );
+        // test setOptionalArgNoAutowireable args
+        $this->assertEquals(
+            array(new Reference('app_a'), 'default_val'),
+            $methodCalls[3][1]
+        );
     }
 }
 
@@ -591,25 +617,60 @@ class SetterInjection
 {
     public function setFoo(Foo $foo)
     {
-    }
-
-    public function setA(A $a)
-    {
+        // should be called
     }
 
     public function setDependencies(Foo $foo, A $a)
     {
+        // should be called
     }
 
     public function setBar()
     {
+        // should not be called
     }
 
     public function setNotAutowireable(NotARealClass $n)
     {
+        // should not be called
+        // ???
+    }
+
+    public function setArgCannotAutowire($foo)
+    {
+        // should not be called
     }
 
     public function setOptionalNotAutowireable(NotARealClass $n = null)
     {
+        // should not be called
+    }
+
+    public function setOptionalNoTypeHint($foo = null)
+    {
+        // should not be called
+    }
+
+    public function setMultipleAutowiringMultipleInstancesForOneArg(A $a, CollisionInterface $collision)
+    {
+        // The CollisionInterface cannot be autowired - there are multiple
+
+        // should not be called
+    }
+
+    public function setOptionalArgNoAutowireable(A $a, $other = 'default_val')
+    {
+        // should be called, but only 1 argument is passed
+    }
+
+    public function setCannotAutowireAllArguments(A $a, $other)
+    {
+        // should not be called
+    }
+
+    public function setWithCallsConfigured(A $a)
+    {
+        // this method has a calls configured on it
+        // should not be called
     }
 }
