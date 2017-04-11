@@ -6,7 +6,7 @@ services:
         Symfony\Component\DependencyInjection\Tests\Compiler\IntegrationTestStubParent:
             # should override _defaults
             autowire: false
-            shared: true
+            shared: false
             tags:
                 - { name: foo_tag }
             calls:
@@ -46,4 +46,4 @@ services:
 
     child_service_with_parent_instanceof:
         parent: parent_service_with_class
-        shared: false
+        shared: true

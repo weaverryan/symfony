@@ -130,7 +130,7 @@ class IntegrationTest extends TestCase
         // instanceof overrides defaults
         $simpleService = $container->getDefinition('service_simple');
         $this->assertFalse($simpleService->isAutowired());
-        $this->assertTrue($simpleService->isShared());
+        $this->assertFalse($simpleService->isShared());
 
         // all tags are kept
         $this->assertEquals(
@@ -165,7 +165,7 @@ class IntegrationTest extends TestCase
         // taken from instanceof applied to parent
         $this->assertFalse($childDef2->isAutowired());
         // override the instanceof
-        $this->assertFalse($childDef2->isShared());
+        $this->assertTrue($childDef2->isShared());
         // tags inherit like normal
         $this->assertEquals(
             array(
