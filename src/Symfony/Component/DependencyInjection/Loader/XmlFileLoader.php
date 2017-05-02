@@ -214,11 +214,18 @@ class XmlFileLoader extends FileLoader
             $definition = new ChildDefinition('');
         } elseif ($parent = $service->getAttribute('parent')) {
             if (!empty($this->instanceof)) {
-                throw new InvalidArgumentException(sprintf('The service "%s" cannot use the "parent" option in the same file where "instanceof" configuration is defined as using both is not supported. Try moving your child definitions to a different file.', $service->getAttribute('id')));
+                throw new InvalidArgumentException(sprintf('The service "%s" cannot use the "parent" option in the same file where "instanceof" configuration is defined as using both is not supported. Move your child definitions to a separate file.', $service->getAttribute('id')));
             }
 
-            if (!empty($defaults)) {
-                throw new InvalidArgumentException(sprintf('The service "%s" cannot use the "parent" option in the same file where "defaults" configuration is defined as using both is not supported. Try moving your child definitions to a different file.', $service->getAttribute('id')));
+            foreach ($defaults as $k => $v) {
+                if ('tags' === $k) {
+                    // since tags are never inherited from parents, there is no confusion
+                    // thus we can safely add them as defaults to ChildDefinition
+                    continue;
+                }
+                if (!$service->hasAttribute($k)) {
+                    throw new InvalidArgumentException(sprintf('Attribute "%s" on service "%s" cannot be inherited from "defaults" when a "parent" is set. Move your child definitions to a separate file or define this attribute explicitly.', $k, $service->getAttribute('id')));
+                }
             }
 
             $definition = new ChildDefinition($parent);

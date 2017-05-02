@@ -44,6 +44,7 @@
         "twig/twig": "~1.28|~2.0"
     },
     "conflict": {
+        "symfony/dependency-injection": "<=3.3-beta1",
         "symfony/var-dumper": "<3.3"
     },
     "suggest": {
