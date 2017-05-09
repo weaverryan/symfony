@@ -22,6 +22,8 @@ use Symfony\Component\DependencyInjection\Loader\PhpFileLoader;
 use Symfony\Component\DependencyInjection\Loader\XmlFileLoader;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\DependencyInjection\Tests\Fixtures\Prototype\OtherDir\AnotherSub\DeeperBaz;
+use Symfony\Component\DependencyInjection\Tests\Fixtures\Prototype\OtherDir\Baz;
 use Symfony\Component\DependencyInjection\Tests\Fixtures\Prototype\Sub\Bar;
 
 class FileLoaderTest extends TestCase
@@ -85,6 +87,25 @@ class FileLoaderTest extends TestCase
         $loader->registerClasses(new Definition(), 'Symfony\Component\DependencyInjection\Tests\Fixtures\Prototype\Sub\\', 'Prototype/%sub_dir%/*');
 
         $this->assertTrue($container->has(Bar::class));
+    }
+
+    public function testRegisterClassesWithExclude()
+    {
+        $container = new ContainerBuilder();
+        $loader = new TestFileLoader($container, new FileLocator(self::$fixturesPath.'/Fixtures'));
+
+        $loader->registerClasses(
+            new Definition(),
+            'Symfony\Component\DependencyInjection\Tests\Fixtures\Prototype\\',
+            'Prototype/*',
+            // load everything, except OtherDir/AnotherSub & Foo.php
+            '^(OtherDir/AnotherSub|Foo\.php)'
+        );
+
+        $this->assertTrue($container->has(Bar::class));
+        $this->assertTrue($container->has(Baz::class));
+        $this->assertFalse($container->has(Foo::class));
+        $this->assertFalse($container->has(DeeperBaz::class));
     }
 
     /**

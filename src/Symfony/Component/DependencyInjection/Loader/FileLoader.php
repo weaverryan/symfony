@@ -47,8 +47,9 @@ abstract class FileLoader extends BaseFileLoader
      * @param Definition $prototype A definition to use as template
      * @param string     $namespace The namespace prefix of classes in the scanned directory
      * @param string     $resource  The directory to look for classes, glob-patterns allowed
+     * @param string     $exclude   Regular expression of paths to exclude
      */
-    public function registerClasses(Definition $prototype, $namespace, $resource)
+    public function registerClasses(Definition $prototype, $namespace, $resource, $exclude = null)
     {
         if ('\\' !== substr($namespace, -1)) {
             throw new InvalidArgumentException(sprintf('Namespace prefix must end with a "\\": %s.', $namespace));
@@ -57,7 +58,7 @@ abstract class FileLoader extends BaseFileLoader
             throw new InvalidArgumentException(sprintf('Namespace is not a valid PSR-4 prefix: %s.', $namespace));
         }
 
-        $classes = $this->findClasses($namespace, $resource);
+        $classes = $this->findClasses($namespace, $resource, $exclude);
         // prepare for deep cloning
         $prototype = serialize($prototype);
 
@@ -84,7 +85,7 @@ abstract class FileLoader extends BaseFileLoader
         }
     }
 
-    private function findClasses($namespace, $pattern)
+    private function findClasses($namespace, $pattern, $excludePattern)
     {
         $parameterBag = $this->container->getParameterBag();
         $pattern = $parameterBag->unescapeValue($parameterBag->resolveValue($pattern));
@@ -92,13 +93,26 @@ abstract class FileLoader extends BaseFileLoader
         $extRegexp = defined('HHVM_VERSION') ? '/\\.(?:php|hh)$/' : '/\\.php$/';
         $prefixLen = null;
         foreach ($this->glob($pattern, true, $resource) as $path => $info) {
+            // guarantee Windows slashes are removed
+            $path = str_replace('\\', '/', $path);
+
             if (null === $prefixLen) {
                 $prefixLen = strlen($resource->getPrefix());
+            }
+
+            if ($excludePattern) {
+                var_dump($path, substr($path, $prefixLen + 1), realpath($path));
+            }
+
+            // match against the "local" path relative to the prefix
+            if ($excludePattern && preg_match('#'.$excludePattern.'#', substr($path, $prefixLen + 1))) {
+                continue;
             }
 
             if (!preg_match($extRegexp, $path, $m) || !$info->isReadable()) {
                 continue;
             }
+
             $class = $namespace.ltrim(str_replace('/', '\\', substr($path, $prefixLen, -strlen($m[0]))), '\\');
 
             if (!preg_match('/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*+(?:\\\\[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*+)*+$/', $class)) {
