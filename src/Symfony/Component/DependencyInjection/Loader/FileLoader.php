@@ -18,6 +18,7 @@ use Symfony\Component\DependencyInjection\Exception\InvalidArgumentException;
 use Symfony\Component\Config\Loader\FileLoader as BaseFileLoader;
 use Symfony\Component\Config\FileLocatorInterface;
 use Symfony\Component\Config\Resource\GlobResource;
+use Symfony\Component\Finder\Glob;
 
 /**
  * FileLoader is the abstract class used by all built-in loaders that are file based.
@@ -92,6 +93,7 @@ abstract class FileLoader extends BaseFileLoader
         $classes = array();
         $extRegexp = defined('HHVM_VERSION') ? '/\\.(?:php|hh)$/' : '/\\.php$/';
         $prefixLen = null;
+        $excludeRegex = $excludePattern ? substr_replace(Glob::toRegex($excludePattern), '(/|$)', -2, 1) : null;
         foreach ($this->glob($pattern, true, $resource) as $path => $info) {
             // guarantee Windows slashes are removed
             $path = str_replace('\\', '/', $path);
@@ -100,12 +102,8 @@ abstract class FileLoader extends BaseFileLoader
                 $prefixLen = strlen($resource->getPrefix());
             }
 
-            if ($excludePattern) {
-                var_dump($path, substr($path, $prefixLen + 1), realpath($path));
-            }
-
             // match against the "local" path relative to the prefix
-            if ($excludePattern && preg_match('#'.$excludePattern.'#', substr($path, $prefixLen + 1))) {
+            if ($excludeRegex && preg_match($excludeRegex, substr($path, $prefixLen + 1))) {
                 continue;
             }
 
