@@ -99,7 +99,7 @@ class FileLoaderTest extends TestCase
             'Symfony\Component\DependencyInjection\Tests\Fixtures\Prototype\\',
             'Prototype/*',
             // load everything, except OtherDir/AnotherSub & Foo.php
-            '^(OtherDir/AnotherSub|Foo\.php)'
+            '{OtherDir/AnotherSub,Foo.php}'
         );
 
         $this->assertTrue($container->has(Bar::class));
