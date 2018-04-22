@@ -27,6 +27,7 @@ class AmqpTransport implements TransportInterface
     private $connection;
     private $receiver;
     private $sender;
+    private $logger;
 
     public function __construct(Connection $connection, SerializerInterface $serializer = null)
     {
