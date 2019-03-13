@@ -11,6 +11,10 @@
 
 namespace Symfony\Component\Messenger;
 
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Messenger\Event\WorkerMessageHandledEvent;
+use Symfony\Component\Messenger\Event\WorkerMessageHandlingEvent;
+use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Messenger\Transport\Receiver\ReceiverInterface;
 
@@ -26,10 +30,13 @@ class Worker
     private $receiver;
     private $bus;
 
-    public function __construct(ReceiverInterface $receiver, MessageBusInterface $bus)
+    private $eventDispatcher;
+
+    public function __construct(ReceiverInterface $receiver, MessageBusInterface $bus, EventDispatcherInterface $eventDispatcher = null)
     {
         $this->receiver = $receiver;
         $this->bus = $bus;
+        $this->eventDispatcher = $eventDispatcher;
     }
 
     /**
@@ -48,7 +55,24 @@ class Worker
                 return;
             }
 
-            $this->bus->dispatch($envelope->with(new ReceivedStamp()));
+            $this->dispatchEvent(WorkerMessageHandlingEvent::class, new WorkerMessageHandlingEvent($envelope));
+
+            try {
+                $this->bus->dispatch($envelope->with(new ReceivedStamp()));
+
+                $this->dispatchEvent(WorkerMessageHandledEvent::class, new WorkerMessageHandledEvent($envelope));
+            } catch (\Throwable $e) {
+                $this->dispatchEvent(WorkerMessageFailedEvent::class, new WorkerMessageFailedEvent($envelope, $e));
+            }
         });
+    }
+
+    private function dispatchEvent(string $eventName, $event)
+    {
+        if (null === $this->eventDispatcher) {
+            return;
+        }
+
+        $this->eventDispatcher->dispatch($eventName, $event);
     }
 }

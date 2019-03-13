@@ -20,6 +20,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Messenger\Transport\Receiver\StopWhenMemoryUsageIsExceededReceiver;
 use Symfony\Component\Messenger\Transport\Receiver\StopWhenMessageCountIsExceededReceiver;
 use Symfony\Component\Messenger\Transport\Receiver\StopWhenTimeLimitIsReachedReceiver;
@@ -39,14 +40,16 @@ class ConsumeMessagesCommand extends Command
     private $logger;
     private $receiverNames;
     private $busNames;
+    private $eventDispatcher;
 
-    public function __construct(ContainerInterface $busLocator, ContainerInterface $receiverLocator, LoggerInterface $logger = null, array $receiverNames = [], array $busNames = [])
+    public function __construct(ContainerInterface $busLocator, ContainerInterface $receiverLocator, LoggerInterface $logger = null, array $receiverNames = [], array $busNames = [], EventDispatcherInterface $eventDispatcher = null)
     {
         $this->busLocator = $busLocator;
         $this->receiverLocator = $receiverLocator;
         $this->logger = $logger;
         $this->receiverNames = $receiverNames;
         $this->busNames = $busNames;
+        $this->eventDispatcher = $eventDispatcher;
 
         parent::__construct();
     }
@@ -174,7 +177,7 @@ EOF
             $io->comment('Re-run the command with a -vvv option to see logs about consumed messages.');
         }
 
-        $worker = new Worker($receiver, $bus);
+        $worker = new Worker($receiver, $bus, $this->eventDispatcher);
         $worker->run();
     }
 

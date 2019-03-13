@@ -80,6 +80,7 @@
             <argument type="service" id="logger" on-invalid="null" />
             <argument type="collection" /> <!-- Receiver names -->
             <argument type="collection" /> <!-- Message bus names -->
+            <argument type="service" id="event_dispatcher" />
 
             <tag name="console.command" command="messenger:consume-messages" />
         </service>
