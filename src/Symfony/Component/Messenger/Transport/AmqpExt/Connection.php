@@ -168,19 +168,14 @@ class Connection
         return null;
     }
 
-    public function ack(\AMQPEnvelope $message): bool
+    public function ack(string $messageDeliveryTag): bool
     {
-        return $this->queue()->ack($message->getDeliveryTag());
+        return $this->queue()->ack($messageDeliveryTag);
     }
 
-    public function reject(\AMQPEnvelope $message): bool
+    public function nack(string $messageDeliveryTag, int $flags = AMQP_NOPARAM): bool
     {
-        return $this->queue()->reject($message->getDeliveryTag());
-    }
-
-    public function nack(\AMQPEnvelope $message, int $flags = AMQP_NOPARAM): bool
-    {
-        return $this->queue()->nack($message->getDeliveryTag(), $flags);
+        return $this->queue()->nack($messageDeliveryTag, $flags);
     }
 
     public function setup(): void

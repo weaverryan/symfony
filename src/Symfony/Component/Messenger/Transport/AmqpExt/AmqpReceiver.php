@@ -13,6 +13,7 @@ namespace Symfony\Component\Messenger\Transport\AmqpExt;
 
 use Symfony\Component\Messenger\Exception\TransportException;
 use Symfony\Component\Messenger\Transport\AmqpExt\Exception\RejectMessageExceptionInterface;
+use Symfony\Component\Messenger\Transport\QueuedMessageMetadata;
 use Symfony\Component\Messenger\Transport\Receiver\ReceiverInterface;
 use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
@@ -42,7 +43,12 @@ class AmqpReceiver implements ReceiverInterface
     public function receive(callable $handler): void
     {
         while (!$this->shouldStop) {
-            $AMQPEnvelope = $this->connection->get();
+            try {
+                $AMQPEnvelope = $this->connection->get();
+            } catch (\AMQPException $exception) {
+                throw new TransportException($exception->getMessage(), 0, $exception);
+            }
+
             if (null === $AMQPEnvelope) {
                 $handler(null);
 
@@ -54,36 +60,35 @@ class AmqpReceiver implements ReceiverInterface
                 continue;
             }
 
-            try {
-                $handler($this->serializer->decode([
-                    'body' => $AMQPEnvelope->getBody(),
-                    'headers' => $AMQPEnvelope->getHeaders(),
-                ]));
+            $handler($this->serializer->decode([
+                'body' => $AMQPEnvelope->getBody(),
+                'headers' => $AMQPEnvelope->getHeaders(),
+            ]), new QueuedMessageMetadata(
+                $AMQPEnvelope->getDeliveryTag(),
+                0 // TODO - make this a real number
+            ));
 
-                $this->connection->ack($AMQPEnvelope);
-            } catch (RejectMessageExceptionInterface $e) {
-                try {
-                    $this->connection->reject($AMQPEnvelope);
-                } catch (\AMQPException $exception) {
-                    throw new TransportException($exception->getMessage(), 0, $exception);
-                }
-
-                throw $e;
-            } catch (\AMQPException $e) {
-                throw new TransportException($e->getMessage(), 0, $e);
-            } catch (\Throwable $e) {
-                try {
-                    $this->connection->nack($AMQPEnvelope, AMQP_REQUEUE);
-                } catch (\AMQPException $exception) {
-                    throw new TransportException($exception->getMessage(), 0, $exception);
-                }
-
-                throw $e;
-            } finally {
-                if (\function_exists('pcntl_signal_dispatch')) {
-                    pcntl_signal_dispatch();
-                }
+            if (\function_exists('pcntl_signal_dispatch')) {
+                pcntl_signal_dispatch();
             }
+        }
+    }
+
+    public function acknowledge($messageId): void
+    {
+        try {
+            $this->connection->ack($messageId);
+        } catch (\AMQPException $exception) {
+            throw new TransportException($exception->getMessage(), 0, $exception);
+        }
+    }
+
+    public function reject($messageId, bool $requeue): void
+    {
+        try {
+            $this->connection->nack($messageId, $requeue ? AMQP_REQUEUE : AMQP_NOPARAM);
+        } catch (\AMQPException $exception) {
+            throw new TransportException($exception->getMessage(), 0, $exception);
         }
     }
 

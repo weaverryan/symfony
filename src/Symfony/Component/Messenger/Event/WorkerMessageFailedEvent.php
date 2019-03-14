@@ -11,10 +11,13 @@ class WorkerMessageFailedEvent extends Event
 
     private $throwable;
 
-    public function __construct(Envelope $envelope, \Throwable $error)
+    private $wasRequeued;
+
+    public function __construct(Envelope $envelope, \Throwable $error, bool $wasRequeued)
     {
         $this->envelope = $envelope;
         $this->throwable = $error;
+        $this->wasRequeued = $wasRequeued;
     }
 
     public function getEnvelope(): Envelope
@@ -25,5 +28,10 @@ class WorkerMessageFailedEvent extends Event
     public function getThrowable(): \Throwable
     {
         return $this->throwable;
+    }
+
+    public function wasRequeued(): bool
+    {
+        return $this->wasRequeued;
     }
 }

@@ -11,11 +11,14 @@
 
 namespace Symfony\Component\Messenger;
 
+use Symfony\Component\EventDispatcher\Event;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Messenger\Event\WorkerMessageHandledEvent;
 use Symfony\Component\Messenger\Event\WorkerMessageHandlingEvent;
 use Symfony\Component\Messenger\Event\WorkerMessageFailedEvent;
+use Symfony\Component\Messenger\Exception\UnrecoverableMessageHandlingException;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
+use Symfony\Component\Messenger\Transport\QueuedMessageMetadata;
 use Symfony\Component\Messenger\Transport\Receiver\ReceiverInterface;
 
 /**
@@ -50,7 +53,7 @@ class Worker
             });
         }
 
-        $this->receiver->receive(function (?Envelope $envelope) {
+        $this->receiver->receive(function (?Envelope $envelope, QueuedMessageMetadata $messageMetadata) {
             if (null === $envelope) {
                 return;
             }
@@ -59,20 +62,46 @@ class Worker
 
             try {
                 $this->bus->dispatch($envelope->with(new ReceivedStamp()));
-
-                $this->dispatchEvent(WorkerMessageHandledEvent::class, new WorkerMessageHandledEvent($envelope));
             } catch (\Throwable $e) {
-                $this->dispatchEvent(WorkerMessageFailedEvent::class, new WorkerMessageFailedEvent($envelope, $e));
+                $shouldRequeue = $this->shouldRequeue($e);
+                $this->receiver->reject($messageMetadata, $shouldRequeue);
+
+                $this->dispatchFailedEvent($envelope, $e, $shouldRequeue);
+
+                return;
             }
+
+            $this->receiver->acknowledge($messageMetadata);
+            $this->dispatchEvent(WorkerMessageHandledEvent::class, new WorkerMessageHandledEvent($envelope));
         });
     }
 
-    private function dispatchEvent(string $eventName, $event)
+    private function dispatchEvent(string $eventName, Event $event)
     {
         if (null === $this->eventDispatcher) {
             return;
         }
 
         $this->eventDispatcher->dispatch($eventName, $event);
+    }
+
+    private function dispatchFailedEvent(Envelope $envelope, \Throwable $throwable, bool $wasRequeued)
+    {
+        $event = new WorkerMessageFailedEvent($envelope, $throwable, $wasRequeued);
+
+        $this->dispatchEvent(WorkerMessageFailedEvent::class, $event);
+
+        return $event->wasRequeued();
+    }
+
+    private function shouldRequeue($e): bool
+    {
+        if ($e instanceof UnrecoverableMessageHandlingException) {
+            return false;
+        }
+
+        // todo - handle max retry attempts
+
+        return true;
     }
 }
