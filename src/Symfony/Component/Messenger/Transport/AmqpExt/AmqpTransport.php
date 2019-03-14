@@ -69,9 +69,9 @@ class AmqpTransport implements TransportInterface
         ($this->receiver ?? $this->getReceiver())->reject($message);
     }
 
-    public function retry($message): void
+    public function retry($message, int $retryDelay): void
     {
-        ($this->receiver ?? $this->getReceiver())->retry($message);
+        ($this->receiver ?? $this->getReceiver())->retry($message, $retryDelay);
     }
 
     private function getReceiver()

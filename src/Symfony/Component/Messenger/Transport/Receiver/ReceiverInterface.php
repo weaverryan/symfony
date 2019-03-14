@@ -52,9 +52,10 @@ interface ReceiverInterface
      * Called when the handling of a message failed but should be retried.
      *
      * @param mixed $message A message as understood by the transport
+     * @param int $retryDelay Milliseconds to wait until retrying
      * @throws TransportException If there is an issue communicating with the transport
      */
-    public function retry($message): void;
+    public function retry($message, int $retryDelay): void;
 
     /**
      * Stop receiving some messages.

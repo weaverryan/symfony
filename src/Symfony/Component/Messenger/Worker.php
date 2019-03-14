@@ -36,6 +36,7 @@ class Worker
     private $eventDispatcher;
 
     private const DEFAULT_MAX_RETRY_ATTEMPTS = 3;
+    private const DEFAULT_RETRY_DELAY = 10000;
 
     public function __construct(ReceiverInterface $receiver, MessageBusInterface $bus, EventDispatcherInterface $eventDispatcher = null)
     {
@@ -67,7 +68,7 @@ class Worker
             } catch (\Throwable $e) {
                 $shouldRequeue = $this->shouldRequeue($e, $messageMetadata);
                 if ($shouldRequeue) {
-                    $this->receiver->retry($messageMetadata->getMessage());
+                    $this->receiver->retry($messageMetadata->getMessage(), self::DEFAULT_RETRY_DELAY);
                 } else {
                     $this->receiver->reject($messageMetadata->getMessage());
                 }

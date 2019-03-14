@@ -94,7 +94,7 @@ class AmqpReceiver implements ReceiverInterface
         }
     }
 
-    public function retry($message): void
+    public function retry($message, int $retryDelay): void
     {
         if (!$message instanceof \AMQPEnvelope) {
             throw new \InvalidArgumentException('Invalid argument: expected AMQPEnvelope');
@@ -104,6 +104,8 @@ class AmqpReceiver implements ReceiverInterface
         // increment the number of attempts
         $attemptNumber = ((int) $message->getHeader(self::ATTEMPT_COUNT_HEADER_NAME) ?: 0) + 1;
         $headers[self::ATTEMPT_COUNT_HEADER_NAME] = $attemptNumber;
+
+        // TODO - use retryDelay
 
         try {
             $this->connection->publish(
