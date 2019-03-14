@@ -12,6 +12,7 @@
 namespace Symfony\Component\Messenger\Transport\AmqpExt;
 
 use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Exception\TransportException;
 use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
 use Symfony\Component\Messenger\Transport\TransportInterface;
@@ -56,6 +57,21 @@ class AmqpTransport implements TransportInterface
     public function send(Envelope $envelope): Envelope
     {
         return ($this->sender ?? $this->getSender())->send($envelope);
+    }
+
+    public function acknowledge($message): void
+    {
+        ($this->receiver ?? $this->getReceiver())->acknowledge($message);
+    }
+
+    public function reject($message): void
+    {
+        ($this->receiver ?? $this->getReceiver())->reject($message);
+    }
+
+    public function retry($message): void
+    {
+        ($this->receiver ?? $this->getReceiver())->retry($message);
     }
 
     private function getReceiver()

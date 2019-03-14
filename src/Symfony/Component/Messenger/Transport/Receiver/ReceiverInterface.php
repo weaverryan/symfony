@@ -35,19 +35,26 @@ interface ReceiverInterface
     /**
      * Acknowlege that the message was handled (i.e. remove from queue).
      *
-     * @param mixed $messageId Unique message id within the transport
+     * @param mixed $message A message as understood by the transport
      * @throws TransportException If there is an issue communicating with the transport
      */
-    public function acknowledge($messageId): void;
+    public function acknowledge($message): void;
 
     /**
      * Called when the handling of a message has failed.
      *
-     * @param mixed $messageId Unique message id within the transport
-     * @param bool $requeue Whether the message should be requeued or discarded
+     * @param mixed $message A message as understood by the transport
      * @throws TransportException If there is an issue communicating with the transport
      */
-    public function reject($messageId, bool $requeue): void;
+    public function reject($message): void;
+
+    /**
+     * Called when the handling of a message failed but should be retried.
+     *
+     * @param mixed $message A message as understood by the transport
+     * @throws TransportException If there is an issue communicating with the transport
+     */
+    public function retry($message): void;
 
     /**
      * Stop receiving some messages.

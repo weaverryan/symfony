@@ -4,26 +4,26 @@ namespace Symfony\Component\Messenger\Transport;
 
 class QueuedMessageMetadata
 {
-    private $messageId;
+    private $message;
 
-    private $numberOfRetries;
+    private $numberOfTimesRetried;
 
     /**
-     * @param mixed $messageId A message id that's understood by the transport
+     * @param mixed $message A "message" that's understood by the transport
      */
-    public function __construct($messageId, int $numberOfRetries)
+    public function __construct($message, int $numberOfRetries)
     {
-        $this->messageId = $messageId;
-        $this->numberOfRetries = $numberOfRetries;
+        $this->message = $message;
+        $this->numberOfTimesRetried = $numberOfRetries;
     }
 
-    public function getMessageId()
+    public function getMessage()
     {
-        return $this->messageId;
+        return $this->message;
     }
 
-    public function getNumberOfRetries(): int
+    public function getNumberOfTimesRetried(): int
     {
-        return $this->numberOfRetries;
+        return $this->numberOfTimesRetried;
     }
 }

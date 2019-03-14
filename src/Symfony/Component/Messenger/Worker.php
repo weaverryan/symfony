@@ -35,6 +35,8 @@ class Worker
 
     private $eventDispatcher;
 
+    private const DEFAULT_MAX_RETRY_ATTEMPTS = 3;
+
     public function __construct(ReceiverInterface $receiver, MessageBusInterface $bus, EventDispatcherInterface $eventDispatcher = null)
     {
         $this->receiver = $receiver;
@@ -53,7 +55,7 @@ class Worker
             });
         }
 
-        $this->receiver->receive(function (?Envelope $envelope, QueuedMessageMetadata $messageMetadata) {
+        $this->receiver->receive(function (?Envelope $envelope, ?QueuedMessageMetadata $messageMetadata) {
             if (null === $envelope) {
                 return;
             }
@@ -63,15 +65,19 @@ class Worker
             try {
                 $this->bus->dispatch($envelope->with(new ReceivedStamp()));
             } catch (\Throwable $e) {
-                $shouldRequeue = $this->shouldRequeue($e);
-                $this->receiver->reject($messageMetadata, $shouldRequeue);
+                $shouldRequeue = $this->shouldRequeue($e, $messageMetadata);
+                if ($shouldRequeue) {
+                    $this->receiver->retry($messageMetadata->getMessage());
+                } else {
+                    $this->receiver->reject($messageMetadata->getMessage());
+                }
 
                 $this->dispatchFailedEvent($envelope, $e, $shouldRequeue);
 
                 return;
             }
 
-            $this->receiver->acknowledge($messageMetadata);
+            $this->receiver->acknowledge($messageMetadata->getMessage());
             $this->dispatchEvent(WorkerMessageHandledEvent::class, new WorkerMessageHandledEvent($envelope));
         });
     }
@@ -94,13 +100,17 @@ class Worker
         return $event->wasRequeued();
     }
 
-    private function shouldRequeue($e): bool
+    private function shouldRequeue(\Throwable $e, QueuedMessageMetadata $messageMetadata): bool
     {
         if ($e instanceof UnrecoverableMessageHandlingException) {
             return false;
         }
 
-        // todo - handle max retry attempts
+        $numberOfRetries = $messageMetadata->getNumberOfTimesRetried() + 1;
+        // TODO - make retry attempts configurable.
+        if ($numberOfRetries >= self::DEFAULT_MAX_RETRY_ATTEMPTS) {
+            return false;
+        }
 
         return true;
     }

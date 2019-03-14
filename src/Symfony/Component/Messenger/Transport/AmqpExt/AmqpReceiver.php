@@ -27,6 +27,8 @@ use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
  */
 class AmqpReceiver implements ReceiverInterface
 {
+    private const ATTEMPT_COUNT_HEADER_NAME = 'symfony-messenger-attempts';
+
     private $serializer;
     private $connection;
     private $shouldStop;
@@ -50,7 +52,7 @@ class AmqpReceiver implements ReceiverInterface
             }
 
             if (null === $AMQPEnvelope) {
-                $handler(null);
+                $handler(null, null);
 
                 usleep($this->connection->getConnectionCredentials()['loop_sleep'] ?? 200000);
                 if (\function_exists('pcntl_signal_dispatch')) {
@@ -64,8 +66,8 @@ class AmqpReceiver implements ReceiverInterface
                 'body' => $AMQPEnvelope->getBody(),
                 'headers' => $AMQPEnvelope->getHeaders(),
             ]), new QueuedMessageMetadata(
-                $AMQPEnvelope->getDeliveryTag(),
-                0 // TODO - make this a real number
+                $AMQPEnvelope,
+                (int) $AMQPEnvelope->getHeader(self::ATTEMPT_COUNT_HEADER_NAME) ?: 0
             ));
 
             if (\function_exists('pcntl_signal_dispatch')) {
@@ -74,19 +76,43 @@ class AmqpReceiver implements ReceiverInterface
         }
     }
 
-    public function acknowledge($messageId): void
+    public function acknowledge($message): void
     {
         try {
-            $this->connection->ack($messageId);
+            $this->connection->ack($message);
         } catch (\AMQPException $exception) {
             throw new TransportException($exception->getMessage(), 0, $exception);
         }
     }
 
-    public function reject($messageId, bool $requeue): void
+    public function reject($message): void
     {
         try {
-            $this->connection->nack($messageId, $requeue ? AMQP_REQUEUE : AMQP_NOPARAM);
+            $this->connection->nack($message, AMQP_NOPARAM);
+        } catch (\AMQPException $exception) {
+            throw new TransportException($exception->getMessage(), 0, $exception);
+        }
+    }
+
+    public function retry($message): void
+    {
+        if (!$message instanceof \AMQPEnvelope) {
+            throw new \InvalidArgumentException('Invalid argument: expected AMQPEnvelope');
+        }
+
+        $headers = $message->getHeaders();
+        // increment the number of attempts
+        $attemptNumber = ((int) $message->getHeader(self::ATTEMPT_COUNT_HEADER_NAME) ?: 0) + 1;
+        $headers[self::ATTEMPT_COUNT_HEADER_NAME] = $attemptNumber;
+
+        try {
+            $this->connection->publish(
+                $message->getBody(),
+                $headers
+            );
+
+            // Acknowledge current message as another one as been requeued.
+            $this->connection->ack($message);
         } catch (\AMQPException $exception) {
             throw new TransportException($exception->getMessage(), 0, $exception);
         }
