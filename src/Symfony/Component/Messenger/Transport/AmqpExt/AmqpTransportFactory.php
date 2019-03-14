@@ -25,11 +25,13 @@ class AmqpTransportFactory implements TransportFactoryInterface
 {
     private $serializer;
     private $debug;
+    private $logger;
 
     public function __construct(SerializerInterface $serializer = null, bool $debug = false)
     {
         $this->serializer = $serializer ?? new PhpSerializer();
         $this->debug = $debug;
+        $this->logger = $logger;
     }
 
     public function createTransport(string $dsn, array $options): TransportInterface

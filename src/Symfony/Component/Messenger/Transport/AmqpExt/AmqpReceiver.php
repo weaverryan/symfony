@@ -31,6 +31,7 @@ class AmqpReceiver implements ReceiverInterface
 
     private $serializer;
     private $connection;
+    private $logger;
     private $shouldStop;
 
     public function __construct(Connection $connection, SerializerInterface $serializer = null)
@@ -54,7 +55,7 @@ class AmqpReceiver implements ReceiverInterface
             if (null === $AMQPEnvelope) {
                 $handler(null, null);
 
-                usleep($this->connection->getConnectionCredentials()['loop_sleep'] ?? 200000);
+                usleep($this->connection->getConnectionConfiguration()['loop_sleep'] ?? self::DEFAULT_LOOP_SLEEP_IN_MICRO_SECONDS);
                 if (\function_exists('pcntl_signal_dispatch')) {
                     pcntl_signal_dispatch();
                 }
