@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Resource\ReflectionClassResource;
 use Symfony\Component\DependencyInjection\ServiceSubscriberInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\Messenger\Handler\MessageSubscriberInterface;
 
 class ReflectionClassResourceTest extends TestCase
 {
@@ -147,6 +148,18 @@ EOPHP;
         $this->assertTrue($res->isFresh(0));
     }
 
+    public function testMessageSubscriber()
+    {
+        $res = new ReflectionClassResource(new \ReflectionClass(TestMessageSubscriber::class));
+        $this->assertTrue($res->isFresh(0));
+
+        TestMessageSubscriber::$subscribedMessages = ['SomeMessageClass'];
+        $this->assertFalse($res->isFresh(0));
+
+        $res = new ReflectionClassResource(new \ReflectionClass(TestMessageSubscriber::class));
+        $this->assertTrue($res->isFresh(0));
+    }
+
     public function testServiceSubscriber()
     {
         $res = new ReflectionClassResource(new \ReflectionClass(TestServiceSubscriber::class));
@@ -171,6 +184,18 @@ class TestEventSubscriber implements EventSubscriberInterface
     public static function getSubscribedEvents()
     {
         return self::$subscribedEvents;
+    }
+}
+
+class TestMessageSubscriber implements MessageSubscriberInterface
+{
+    public static $subscribedMessages = [];
+
+    public static function getHandledMessages(): iterable
+    {
+        foreach (self::$subscribedMessages as $subscribedMessage) {
+            yield $subscribedMessage;
+        }
     }
 }
 
