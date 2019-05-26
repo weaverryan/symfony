@@ -21,6 +21,7 @@ namespace Symfony\Component\HttpKernel\Event;
  * Arguments set in the event must be compatible with the signature of the
  * controller.
  *
+ * @Event()
  * @author Christophe Coevoet <stof@notk.org>
  */
 class ControllerArgumentsEvent extends FilterControllerArgumentsEvent
